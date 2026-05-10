@@ -606,3 +606,84 @@ docker rmi mayanghua/instock:latest library/mariadb:latest
 股市有风险投资需谨慎，本系统只能用于学习、股票分析，投资盈亏概不负责。
 
 本系统中的表格为第三方商业控件，仅使用了评估版进行学习及测试。
+
+## 源码直接运行
+
+不一定要把系统部署成服务或使用 Docker。准备好 Python 依赖和 MySQL/MariaDB 后，可以在项目根目录直接通过统一入口运行各项功能：
+
+```bash
+# 查看可用命令
+python -m instock --help
+
+# 初始化数据库和基础表
+python -m instock init
+
+# 执行整体数据任务，自动识别当前/最近交易日
+python -m instock job
+
+# 指定单日、多个日期或日期区间执行整体任务
+python -m instock job 2023-03-01
+python -m instock job 2023-03-01,2023-03-02
+python -m instock job 2023-03-01 2023-03-21
+
+# 只运行某类任务
+python -m instock realtime
+python -m instock selection
+python -m instock indicators
+python -m instock pattern
+python -m instock strategy
+python -m instock backtest
+
+# 启动 Web 可视化服务
+python -m instock web
+```
+
+统一入口会自动定位对应模块，因此不需要切换到 `instock/job` 目录，也不需要记忆 `execute_daily_job.py`、`basic_data_daily_job.py` 等脚本路径。数据库、Web 端口、调试开关等仍可使用下方环境变量覆盖。
+
+## 个性化配置建议
+
+为了方便把系统部署到自己的环境，Web 服务和 Docker Compose 支持通过环境变量覆盖常用配置，避免直接修改源码：
+
+| 环境变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `db_host` | `localhost` | 数据库服务主机 |
+| `db_user` | `root` | 数据库访问用户 |
+| `db_password` | `root` | 数据库访问密码 |
+| `db_database` | `instockdb` | 数据库名称 |
+| `db_port` | `3306` | 数据库端口 |
+| `web_host` | 空字符串 | Web 监听地址；Docker 中建议使用 `0.0.0.0` |
+| `web_port` | `9988` | Web 服务端口 |
+| `web_debug` | `false` | 是否开启 Tornado debug 模式，生产环境建议保持关闭 |
+| `web_xsrf_cookies` | `false` | 是否启用 Tornado XSRF Cookie |
+| `web_cookie_secret` | 内置默认值 | Cookie 加密密钥，生产环境建议设置为随机长字符串 |
+
+本地运行示例：
+
+```bash
+export db_host=127.0.0.1
+export db_user=instock
+export db_password='your-password'
+export db_database=instockdb
+export web_host=0.0.0.0
+export web_port=9988
+export web_debug=false
+export web_cookie_secret='replace-with-a-long-random-secret'
+
+python -m instock init
+python -m instock job
+python -m instock web
+```
+
+Docker Compose 运行示例：
+
+```bash
+export MYSQL_ROOT_PASSWORD='your-root-password'
+export INSTOCK_DB_PASSWORD='your-root-password'
+export INSTOCK_WEB_PORT=9988
+export INSTOCK_WEB_DEBUG=false
+export INSTOCK_WEB_COOKIE_SECRET='replace-with-a-long-random-secret'
+
+docker compose -f docker/docker-compose.yml up -d
+```
+
+如果需要使用代理或东方财富 Cookie，可通过 `INSTOCK_PROXY_FILE`、`INSTOCK_EASTMONEY_COOKIE_FILE` 指向宿主机上的配置文件路径。

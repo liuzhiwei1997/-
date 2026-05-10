@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import os
 import os.path
 import sys
 from abc import ABC
@@ -32,6 +33,24 @@ __author__ = 'myh '
 __date__ = '2023/3/10 '
 
 
+def _get_bool_env(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _get_int_env(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        logging.error(f"环境变量{name}={value}不是有效整数，使用默认值{default}")
+        return default
+
+
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
@@ -49,10 +68,13 @@ class Application(tornado.web.Application):
         settings = dict(  # 配置
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
-            xsrf_cookies=False,  # True,
-            # cookie加密
-            cookie_secret="027bb1b670eddf0392cdda8709268a17b58b7",
-            debug=True,
+            xsrf_cookies=_get_bool_env('web_xsrf_cookies', False),
+            # cookie加密，生产环境建议通过环境变量覆盖。
+            cookie_secret=os.environ.get(
+                'web_cookie_secret',
+                "027bb1b670eddf0392cdda8709268a17b58b7"
+            ),
+            debug=_get_bool_env('web_debug', False),
         )
         super(Application, self).__init__(handlers, **settings)
         # Have one global connection to the blog DB across all handlers
@@ -73,11 +95,13 @@ def main():
     tornado.options.options.logging = None
 
     http_server = tornado.httpserver.HTTPServer(Application())
-    port = 9988
-    http_server.listen(port)
+    port = _get_int_env('web_port', 9988)
+    host = os.environ.get('web_host', '')
+    http_server.listen(port, address=host)
 
-    print(f"服务已启动，web地址 : http://localhost:{port}/")
-    logging.error(f"服务已启动，web地址 : http://localhost:{port}/")
+    display_host = host or 'localhost'
+    print(f"服务已启动，web地址 : http://{display_host}:{port}/")
+    logging.error(f"服务已启动，web地址 : http://{display_host}:{port}/")
 
     tornado.ioloop.IOLoop.current().start()
 
