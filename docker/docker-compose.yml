@@ -1,13 +1,13 @@
-version: '4.0.0'
+version: '3.8'
 
 services:
   instockdbservice:
     image: library/mariadb:latest
     container_name: InStockDbService
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
     volumes:
-      - /data/mariadb/data:/var/lib/instockdb
+      - ${INSTOCK_DB_DATA_DIR:-/data/mariadb/data}:/var/lib/mysql
     networks:
       - instock_network
 
@@ -15,11 +15,20 @@ services:
     image: mayanghua/instock:latest
     container_name: InStock
     ports:
-      - "9988:9988"
+      - "${INSTOCK_WEB_PORT:-9988}:9988"
     environment:
       db_host: InStockDbService
+      db_user: ${INSTOCK_DB_USER:-root}
+      db_password: ${INSTOCK_DB_PASSWORD:-root}
+      db_database: ${INSTOCK_DB_DATABASE:-instockdb}
+      db_port: ${INSTOCK_DB_PORT:-3306}
+      web_host: 0.0.0.0
+      web_port: 9988
+      web_debug: ${INSTOCK_WEB_DEBUG:-false}
+      web_cookie_secret: ${INSTOCK_WEB_COOKIE_SECRET:-027bb1b670eddf0392cdda8709268a17b58b7}
     volumes:
-      - /data/instockproxy.txt:/data/InStock/instock/config/proxy.txt
+      - ${INSTOCK_PROXY_FILE:-/data/instockproxy.txt}:/data/InStock/instock/config/proxy.txt
+      - ${INSTOCK_EASTMONEY_COOKIE_FILE:-/data/eastmoneycookie.txt}:/data/InStock/instock/config/eastmoney_cookie.txt
     depends_on:
       - instockdbservice
     networks:
@@ -28,4 +37,3 @@ services:
 networks:
   instock_network:
     driver: bridge
-
